@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  webhooks-square
+
+  Sample SAM Template for webhooks-square
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  WebhookFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: webhook-function/
+      Handler: app.webhookFunction
+      Runtime: nodejs12.x
+      Policies:
+        # Give just CRUD permissions to one table
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WebhookEventTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          TABLE_NAME: !Ref WebhookEventTable
+          SIGNATURE_KEY: '{{resolve:ssm:SIGNATURE_KEY:1}}'
+      Events:
+        WebhookEvent:
+          Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /
+            Method: POST
+
+  WebhookEventTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  WebhookFunction:
+    Description: "Square Webhook Lambda Function ARN"
+    Value: !GetAtt WebhookFunction.Arn
+  WebhookFunctionFunctionIamRole:
+    Description: "Implicit IAM Role created for WebhookFunction function"
+    Value: !GetAtt WebhookFunctionRole.Arn
+  WebhookFunctionApi:
+    Description: "URL for Webhook API Gateway"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
