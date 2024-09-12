@@ -19,7 +19,7 @@ exports.webhookFunction = async (event) => {
         TABLE_NAME,
         SIGNATURE_KEY, // This is set in the Parameter Store
     } = process.env;
-    const hmac = createHmac('sha1', SIGNATURE_KEY);
+    const hmac = createHmac('sha256', SIGNATURE_KEY);
     const requestUrl = `https://${
         event.requestContext.domainName + event.requestContext.path
     }`;
@@ -31,13 +31,13 @@ exports.webhookFunction = async (event) => {
         const hash = hmac.digest('base64');
 
         // Check if we have a valid webhook event
-        if(hash !== event.headers['x-square-signature']) {
+        if(hash !== event.headers['x-square-hmacsha256-signature']) {
             // We have an invalid webhook event.
             // Logging and stopping processing.
             console.error(`Mismatched request signature, ${
                 hash
             } !== ${
-                event.headers['x-square-signature']
+                event.headers['x-square-hmacsha256-signature']
             }`)
             throw new Error(`Mismatched request signature`);
         }
@@ -56,7 +56,7 @@ exports.webhookFunction = async (event) => {
         // Signal back to Square the event was received
         return {
             'statusCode': 200,
-            'body': "ok"
+            'body': '{"message": "hello world"}'
         }
     } catch (err) {
         console.error(err);
